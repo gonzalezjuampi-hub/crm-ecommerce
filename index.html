@@ -451,7 +451,7 @@ function renderFicha() {
           <div style="font-size:15px;font-weight:600;">${fmtDate(draft.FechaProximoContacto)}</div>
         </div>
         <div class="freq-options">
-          ${[15,30,60].map(d => `<button class="freq-btn ${String(draft.FrecuenciaContacto) === String(d) ? 'selected' : ''}" data-freq="${d}">${d} días</button>`).join('')}
+          ${[1,3,7,15,30,60].map(d => `<button class="freq-btn ${String(draft.FrecuenciaContacto) === String(d) ? 'selected' : ''}" data-freq="${d}">${d === 1 ? 'Diario' : d + ' días'}</button>`).join('')}
         </div>
         <button class="btn btn-gold" id="log-contact-btn">Registrar contacto hoy</button>
       </div>
