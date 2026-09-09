@@ -1,0 +1,12 @@
+{
+  "name": "CRM Ecommerce - AWS GROUP",
+  "short_name": "CRM Ecommerce",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#EFE9DE",
+  "theme_color": "#4A1526",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

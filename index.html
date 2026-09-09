@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRM Ecommerce — AWS GROUP</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#4A1526">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --wine: #4A1526;
+    --wine-dark: #34101B;
+    --wine-soft: #6B2B40;
+    --gold: #B8935A;
+    --ink: #2B2420;
+    --ink-soft: #6B6259;
+    --paper: #F3EEE3;
+    --paper-raised: #FFFFFF;
+    --line: #E1D8C6;
+    --overdue: #B54834;
+    --due-soon: #C7962E;
+    --ok: #6E8259;
+    --radius: 4px;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font-family: 'Inter', sans-serif;
+    color: var(--ink);
+    background: var(--paper);
+    font-size: 14px;
+  }
+  h1, h2, h3, .display { font-family: 'Fraunces', serif; }
+
+  #app { display: flex; height: 100vh; }
+
+  /* ---------- Sidebar ---------- */
+  #sidebar {
+    width: 340px;
+    min-width: 340px;
+    background: var(--wine);
+    color: #EFE3DA;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+  #sidebar-header {
+    padding: 22px 20px 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.12);
+  }
+  #sidebar-header .brand {
+    font-family: 'Fraunces', serif;
+    font-size: 20px;
+    font-weight: 500;
+    letter-spacing: 0.2px;
+    color: #fff;
+    margin: 0 0 2px;
+  }
+  #sidebar-header .sub {
+    font-size: 12px;
+    color: rgba(239,227,218,0.65);
+    margin: 0 0 16px;
+  }
+  #search {
+    width: 100%;
+    padding: 9px 12px;
+    border-radius: var(--radius);
+    border: 1px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.08);
+    color: #fff;
+    font-size: 13px;
+    outline: none;
+  }
+  #search::placeholder { color: rgba(239,227,218,0.5); }
+  #new-client-btn {
+    margin-top: 10px;
+    width: 100%;
+    padding: 9px 12px;
+    border-radius: var(--radius);
+    border: 1px solid var(--gold);
+    background: transparent;
+    color: var(--gold);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  #new-client-btn:hover { background: rgba(184,147,90,0.12); }
+
+  #client-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 6px 0;
+  }
+  .client-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 20px;
+    cursor: pointer;
+    border-left: 3px solid transparent;
+  }
+  .client-row:hover { background: rgba(255,255,255,0.06); }
+  .client-row.active {
+    background: rgba(255,255,255,0.1);
+    border-left-color: var(--gold);
+  }
+  .alarm-dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .alarm-dot.overdue { background: var(--overdue); }
+  .alarm-dot.due-soon { background: var(--due-soon); }
+  .alarm-dot.ok { background: var(--ok); }
+  .alarm-dot.none { background: rgba(255,255,255,0.25); }
+  .client-row .info { min-width: 0; flex: 1; }
+  .client-row .name { font-size: 13.5px; font-weight: 600; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .client-row .meta { font-size: 11.5px; color: rgba(239,227,218,0.6); margin-top: 1px; }
+  #empty-list { padding: 24px 20px; font-size: 13px; color: rgba(239,227,218,0.55); }
+
+  /* ---------- Main panel ---------- */
+  #main { flex: 1; overflow-y: auto; height: 100%; }
+  #empty-state {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    color: var(--ink-soft);
+    text-align: center;
+    padding: 40px;
+  }
+  #empty-state h2 { color: var(--ink); margin-bottom: 6px; font-weight: 500; }
+
+  #ficha { max-width: 780px; margin: 0 auto; padding: 32px 32px 60px; }
+  #ficha-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 18px;
+    margin-bottom: 22px;
+  }
+  #ficha-header .titles .num { font-size: 12px; letter-spacing: 0.4px; color: var(--gold); font-weight: 600; }
+  #ficha-header .titles h2 { font-size: 28px; margin: 2px 0 6px; font-weight: 500; }
+  .status-pill {
+    display: inline-block;
+    font-size: 11.5px;
+    padding: 3px 10px;
+    border-radius: 12px;
+    background: var(--line);
+    color: var(--ink-soft);
+    font-weight: 600;
+  }
+  .status-pill.overdue { background: #F3E0DB; color: var(--overdue); }
+  .status-pill.due-soon { background: #F5E9D2; color: var(--due-soon); }
+  .status-pill.ok { background: #E5EADF; color: var(--ok); }
+
+  #ficha-actions { display: flex; gap: 8px; flex-shrink: 0; }
+  .btn {
+    padding: 8px 14px;
+    border-radius: var(--radius);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid var(--line);
+    background: var(--paper-raised);
+    color: var(--ink);
+  }
+  .btn:hover { border-color: var(--ink-soft); }
+  .btn-primary { background: var(--wine); color: #fff; border-color: var(--wine); }
+  .btn-primary:hover { background: var(--wine-dark); border-color: var(--wine-dark); }
+  .btn-danger { color: var(--overdue); }
+  .btn-gold { background: var(--gold); border-color: var(--gold); color: #fff; }
+
+  #tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 22px; }
+  .tab-btn {
+    padding: 9px 4px;
+    margin-right: 20px;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: var(--ink-soft);
+    cursor: pointer;
+  }
+  .tab-btn.active { color: var(--wine); border-bottom-color: var(--wine); }
+
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 20px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field.full { grid-column: 1 / -1; }
+  .field label { font-size: 12px; font-weight: 600; color: var(--ink-soft); }
+  .field input, .field select, .field textarea {
+    padding: 8px 10px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    font-family: 'Inter', sans-serif;
+    font-size: 13.5px;
+    color: var(--ink);
+    background: var(--paper-raised);
+  }
+  .field textarea { resize: vertical; min-height: 70px; }
+  .field input:focus, .field select:focus, .field textarea:focus {
+    outline: none;
+    border-color: var(--wine);
+  }
+
+  .contact-box {
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    margin-bottom: 20px;
+  }
+  .contact-box .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .contact-box .freq-options { display: flex; gap: 6px; }
+  .freq-btn {
+    padding: 6px 12px;
+    border-radius: 14px;
+    border: 1px solid var(--line);
+    background: var(--paper-raised);
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--ink-soft);
+  }
+  .freq-btn.selected { background: var(--wine); border-color: var(--wine); color: #fff; }
+
+  /* ---------- Modal (nuevo cliente) ---------- */
+  #modal-overlay {
+    position: fixed; inset: 0; background: rgba(43,36,32,0.45);
+    display: none; align-items: center; justify-content: center; z-index: 50;
+  }
+  #modal-overlay.open { display: flex; }
+  #modal {
+    background: var(--paper-raised);
+    border-radius: 6px;
+    width: 420px;
+    max-width: 92vw;
+    padding: 24px;
+  }
+  #modal h3 { margin: 0 0 16px; font-weight: 500; }
+  #modal .field { margin-bottom: 14px; }
+  #modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+
+  #toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: var(--ink); color: #fff; padding: 10px 18px; border-radius: 20px;
+    font-size: 13px; opacity: 0; pointer-events: none; transition: opacity 0.25s;
+    z-index: 100;
+  }
+  #toast.show { opacity: 1; }
+
+  @media (max-width: 720px) {
+    #sidebar { width: 100%; position: fixed; z-index: 20; transition: transform 0.2s; }
+    #sidebar.hidden-mobile { transform: translateX(-100%); }
+    #main { width: 100%; }
+    .field-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <aside id="sidebar">
+    <div id="sidebar-header">
+      <p class="brand">CRM Ecommerce</p>
+      <p class="sub">AWS GROUP — Seguimiento de clientes</p>
+      <input id="search" type="text" placeholder="Buscar por nombre o número…">
+      <button id="new-client-btn">+ Nuevo cliente</button>
+    </div>
+    <div id="client-list"><div id="empty-list">Cargando clientes…</div></div>
+  </aside>
+
+  <main id="main">
+    <div id="empty-state">
+      <h2>Seleccioná un cliente</h2>
+      <p>Elegí una ficha de la lista o creá un cliente nuevo para empezar.</p>
+    </div>
+    <div id="ficha" style="display:none;"></div>
+  </main>
+</div>
+
+<div id="modal-overlay">
+  <div id="modal">
+    <h3>Nuevo cliente</h3>
+    <div class="field">
+      <label>Número de cliente</label>
+      <input id="new-numero" type="text" placeholder="Ej: 1042">
+    </div>
+    <div class="field">
+      <label>Nombre del cliente</label>
+      <input id="new-nombre" type="text" placeholder="Ej: Wine & Co Imports">
+    </div>
+    <div id="modal-actions">
+      <button class="btn" id="modal-cancel">Cancelar</button>
+      <button class="btn btn-primary" id="modal-create">Crear ficha</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const API_URL = '/api';
+
+let clients = [];
+let selectedId = null;
+let activeTab = 'general';
+let draft = null; // copia editable del cliente seleccionado
+
+// ---------- Utilidades ----------
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+function fmtDate(v) {
+  if (!v) return '—';
+  const d = new Date(v);
+  if (isNaN(d)) return '—';
+  return d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+function toInputDate(v) {
+  if (!v) return '';
+  const d = new Date(v);
+  if (isNaN(d)) return '';
+  return d.toISOString().slice(0, 10);
+}
+
+function alarmStatus(c) {
+  if (!c.FechaProximoContacto) return 'none';
+  const next = new Date(c.FechaProximoContacto);
+  const today = new Date(); today.setHours(0,0,0,0);
+  const diffDays = Math.floor((next - today) / 86400000);
+  if (diffDays < 0) return 'overdue';
+  if (diffDays <= 3) return 'due-soon';
+  return 'ok';
+}
+
+function statusLabel(status) {
+  return { overdue: 'Vencido', 'due-soon': 'Vence pronto', ok: 'Al día', none: 'Sin agenda' }[status];
+}
+
+// ---------- API ----------
+async function apiGet(action, params) {
+  const qs = new URLSearchParams({ action, ...(params || {}) }).toString();
+  const res = await fetch(`${API_URL}?${qs}`);
+  return res.json();
+}
+async function apiPost(body) {
+  const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify(body) });
+  return res.json();
+}
+
+async function loadClients() {
+  try {
+    clients = await apiGet('list');
+    renderList();
+    if (selectedId) {
+      const c = clients.find(c => c.ID === selectedId);
+      if (c) { draft = { ...c }; renderFicha(); }
+    }
+  } catch (err) {
+    document.getElementById('client-list').innerHTML =
+      '<div id="empty-list">No se pudo conectar con la base de datos. Revisá la configuración del proxy.</div>';
+  }
+}
+
+// ---------- Sidebar / lista ----------
+function renderList() {
+  const q = document.getElementById('search').value.trim().toLowerCase();
+  const container = document.getElementById('client-list');
+
+  let filtered = clients.filter(c =>
+    !q || (c.NombreCliente || '').toLowerCase().includes(q) || String(c.NumeroCliente || '').includes(q)
+  );
+
+  filtered.sort((a, b) => {
+    const order = { overdue: 0, 'due-soon': 1, ok: 2, none: 3 };
+    return order[alarmStatus(a)] - order[alarmStatus(b)];
+  });
+
+  if (filtered.length === 0) {
+    container.innerHTML = '<div id="empty-list">No hay clientes que coincidan.</div>';
+    return;
+  }
+
+  container.innerHTML = filtered.map(c => {
+    const status = alarmStatus(c);
+    return `
+      <div class="client-row ${c.ID === selectedId ? 'active' : ''}" data-id="${c.ID}">
+        <span class="alarm-dot ${status}"></span>
+        <div class="info">
+          <div class="name">${escapeHtml(c.NombreCliente || 'Sin nombre')}</div>
+          <div class="meta">#${escapeHtml(c.NumeroCliente || '—')} · próximo contacto ${fmtDate(c.FechaProximoContacto)}</div>
+        </div>
+      </div>`;
+  }).join('');
+
+  container.querySelectorAll('.client-row').forEach(row => {
+    row.addEventListener('click', () => selectClient(row.dataset.id));
+  });
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
+}
+
+function selectClient(id) {
+  selectedId = id;
+  draft = { ...clients.find(c => c.ID === id) };
+  activeTab = 'general';
+  renderList();
+  renderFicha();
+}
+
+// ---------- Ficha ----------
+function renderFicha() {
+  document.getElementById('empty-state').style.display = 'none';
+  const el = document.getElementById('ficha');
+  el.style.display = 'block';
+  const status = alarmStatus(draft);
+
+  el.innerHTML = `
+    <div id="ficha-header">
+      <div class="titles">
+        <div class="num">CLIENTE #${escapeHtml(draft.NumeroCliente || '—')}</div>
+        <h2>${escapeHtml(draft.NombreCliente || 'Sin nombre')}</h2>
+        <span class="status-pill ${status}">${statusLabel(status)}</span>
+      </div>
+      <div id="ficha-actions">
+        <button class="btn btn-danger" id="delete-btn">Eliminar</button>
+        <button class="btn btn-primary" id="save-btn">Guardar cambios</button>
+      </div>
+    </div>
+
+    <div class="contact-box">
+      <div class="row">
+        <div>
+          <div style="font-size:12px;color:var(--ink-soft);font-weight:600;margin-bottom:2px;">PRÓXIMO CONTACTO</div>
+          <div style="font-size:15px;font-weight:600;">${fmtDate(draft.FechaProximoContacto)}</div>
+        </div>
+        <div class="freq-options">
+          ${[15,30,60].map(d => `<button class="freq-btn ${String(draft.FrecuenciaContacto) === String(d) ? 'selected' : ''}" data-freq="${d}">${d} días</button>`).join('')}
+        </div>
+        <button class="btn btn-gold" id="log-contact-btn">Registrar contacto hoy</button>
+      </div>
+    </div>
+
+    <div id="tabs">
+      <button class="tab-btn ${activeTab==='general'?'active':''}" data-tab="general">Datos generales</button>
+      <button class="tab-btn ${activeTab==='preferencias'?'active':''}" data-tab="preferencias">Preferencias</button>
+      <button class="tab-btn ${activeTab==='negociacion'?'active':''}" data-tab="negociacion">Negociación</button>
+      <button class="tab-btn ${activeTab==='notas'?'active':''}" data-tab="notas">Notas</button>
+    </div>
+
+    <div class="tab-panel ${activeTab==='general'?'active':''}" data-panel="general">
+      <div class="field-grid">
+        ${field('Nacionalidad', 'Nacionalidad', 'text')}
+        ${field('Estado', 'Estado', 'select', ['Activo','Potencial','Inactivo','Cliente'])}
+        ${field('FechaPrimerContacto', 'Fecha de primer contacto', 'date')}
+        ${field('RangoPresupuesto', 'Rango de presupuesto', 'text')}
+        ${field('DetallePedido', 'Detalle del pedido', 'textarea', null, true)}
+      </div>
+    </div>
+
+    <div class="tab-panel ${activeTab==='preferencias'?'active':''}" data-panel="preferencias">
+      <div class="field-grid">
+        ${field('BodegasPreferencia', 'Bodegas de preferencia', 'textarea', null, true)}
+        ${field('VinosPreferencia', 'Vinos de preferencia', 'textarea', null, true)}
+      </div>
+    </div>
+
+    <div class="tab-panel ${activeTab==='negociacion'?'active':''}" data-panel="negociacion">
+      <div class="field-grid">
+        ${field('FechaUltimoContacto', 'Fecha de último contacto', 'date')}
+        ${field('FechaCompra', 'Fecha de compra (si cerró)', 'date')}
+        ${field('DuracionNegociacionDias', 'Duración de la negociación (días)', 'number')}
+      </div>
+    </div>
+
+    <div class="tab-panel ${activeTab==='notas'?'active':''}" data-panel="notas">
+      <div class="field-grid">
+        ${field('PuntosDebiles', 'Puntos débiles de la comunicación', 'textarea', null, true)}
+        ${field('PuntosInteres', 'Puntos de interés para negociar', 'textarea', null, true)}
+      </div>
+    </div>
+  `;
+
+  el.querySelectorAll('[data-field]').forEach(input => {
+    input.addEventListener('input', (e) => { draft[e.target.dataset.field] = e.target.value; });
+  });
+  el.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => { activeTab = btn.dataset.tab; renderFicha(); });
+  });
+  el.querySelectorAll('.freq-btn').forEach(btn => {
+    btn.addEventListener('click', () => { draft.FrecuenciaContacto = btn.dataset.freq; renderFicha(); });
+  });
+  document.getElementById('save-btn').addEventListener('click', saveDraft);
+  document.getElementById('delete-btn').addEventListener('click', deleteDraft);
+  document.getElementById('log-contact-btn').addEventListener('click', logContactNow);
+}
+
+function field(key, label, type, options, full) {
+  const value = draft[key] !== undefined ? draft[key] : '';
+  const cls = full ? 'field full' : 'field';
+  if (type === 'textarea') {
+    return `<div class="${cls}"><label>${label}</label><textarea data-field="${key}">${escapeHtml(value)}</textarea></div>`;
+  }
+  if (type === 'select') {
+    return `<div class="${cls}"><label>${label}</label>
+      <select data-field="${key}">
+        ${options.map(o => `<option value="${o}" ${value===o?'selected':''}>${o}</option>`).join('')}
+      </select></div>`;
+  }
+  if (type === 'date') {
+    return `<div class="${cls}"><label>${label}</label><input type="date" data-field="${key}" value="${toInputDate(value)}"></div>`;
+  }
+  return `<div class="${cls}"><label>${label}</label><input type="${type}" data-field="${key}" value="${escapeHtml(value)}"></div>`;
+}
+
+// ---------- Acciones ----------
+async function saveDraft() {
+  const res = await apiPost({ action: 'update', data: draft });
+  if (res.error) { toast('Error: ' + res.error); return; }
+  toast('Cambios guardados');
+  await loadClients();
+}
+
+async function deleteDraft() {
+  if (!confirm(`¿Eliminar la ficha de ${draft.NombreCliente}? Esta acción no se puede deshacer.`)) return;
+  const res = await apiPost({ action: 'delete', id: draft.ID });
+  if (res.error) { toast('Error: ' + res.error); return; }
+  selectedId = null;
+  document.getElementById('ficha').style.display = 'none';
+  document.getElementById('empty-state').style.display = 'flex';
+  toast('Cliente eliminado');
+  await loadClients();
+}
+
+async function logContactNow() {
+  const freq = draft.FrecuenciaContacto || 30;
+  const res = await apiPost({ action: 'logContact', id: draft.ID, frecuencia: freq });
+  if (res.error) { toast('Error: ' + res.error); return; }
+  toast('Contacto registrado — próxima fecha actualizada');
+  await loadClients();
+}
+
+// ---------- Modal nuevo cliente ----------
+const overlay = document.getElementById('modal-overlay');
+document.getElementById('new-client-btn').addEventListener('click', () => {
+  document.getElementById('new-numero').value = '';
+  document.getElementById('new-nombre').value = '';
+  overlay.classList.add('open');
+});
+document.getElementById('modal-cancel').addEventListener('click', () => overlay.classList.remove('open'));
+document.getElementById('modal-create').addEventListener('click', async () => {
+  const numero = document.getElementById('new-numero').value.trim();
+  const nombre = document.getElementById('new-nombre').value.trim();
+  if (!nombre) { toast('El nombre es obligatorio'); return; }
+  const res = await apiPost({ action: 'create', data: { NumeroCliente: numero, NombreCliente: nombre, FrecuenciaContacto: 30 } });
+  if (res.error) { toast('Error: ' + res.error); return; }
+  overlay.classList.remove('open');
+  await loadClients();
+  selectClient(res.id);
+  toast('Ficha creada');
+});
+
+document.getElementById('search').addEventListener('input', renderList);
+
+// ---------- PWA ----------
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+
+loadClients();
+setInterval(loadClients, 60000); // refresco automático cada minuto
+</script>
+</body>
+</html>
