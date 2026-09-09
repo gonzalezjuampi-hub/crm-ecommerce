@@ -74,6 +74,19 @@
     font-size: 13px;
     outline: none;
   }
+  #view-switch { display: flex; gap: 6px; margin-bottom: 12px; }
+  .view-btn {
+    flex: 1;
+    padding: 7px 0;
+    border-radius: var(--radius);
+    border: 1px solid rgba(255,255,255,0.2);
+    background: transparent;
+    color: rgba(239,227,218,0.7);
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .view-btn.selected { background: rgba(255,255,255,0.14); color: #fff; border-color: rgba(255,255,255,0.3); }
   #search::placeholder { color: rgba(239,227,218,0.5); }
   #new-client-btn {
     margin-top: 10px;
@@ -158,6 +171,39 @@
   #empty-state h2 { color: var(--ink); margin-bottom: 6px; font-weight: 500; }
 
   #ficha { max-width: 780px; margin: 0 auto; padding: 32px 32px 60px; }
+
+  /* ---------- Reportes ---------- */
+  #reports-view { max-width: 920px; margin: 0 auto; padding: 32px 32px 60px; }
+  #reports-view h2 { font-size: 26px; font-weight: 500; margin: 0 0 4px; }
+  #reports-view .sub-lead { color: var(--ink-soft); margin: 0 0 22px; font-size: 13.5px; }
+  .date-filter { display: flex; align-items: center; gap: 10px; margin-bottom: 24px; }
+  .date-filter input { padding: 7px 10px; border: 1px solid var(--line); border-radius: var(--radius); font-family: 'Inter'; }
+  .date-filter span { color: var(--ink-soft); font-size: 13px; }
+  .date-filter button { margin-left: auto; }
+
+  .kpi-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 30px; }
+  .kpi-card {
+    background: var(--paper-raised); border: 1px solid var(--line); border-radius: 6px;
+    padding: 16px 18px;
+  }
+  .kpi-card .label { font-size: 11.5px; font-weight: 700; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px; }
+  .kpi-card .value { font-family: 'Fraunces', serif; font-size: 26px; color: var(--wine); }
+
+  #chart-wrap { margin-bottom: 30px; }
+  #chart-wrap h3 { font-size: 15px; font-weight: 600; margin-bottom: 14px; }
+  .bar-chart { display: flex; align-items: flex-end; gap: 10px; height: 160px; padding: 0 4px; border-bottom: 1px solid var(--line); }
+  .bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; }
+  .bar { width: 100%; max-width: 46px; background: linear-gradient(180deg, var(--gold), var(--wine)); border-radius: 3px 3px 0 0; }
+  .bar-col .bar-label { font-size: 10.5px; color: var(--ink-soft); margin-top: 6px; }
+  .bar-col .bar-value { font-size: 10.5px; color: var(--ink); font-weight: 600; margin-bottom: 4px; }
+
+  table.report-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.report-table th {
+    text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px;
+    color: var(--ink-soft); border-bottom: 1px solid var(--line); padding: 8px 10px;
+  }
+  table.report-table td { padding: 9px 10px; border-bottom: 1px solid var(--line); }
+  table.report-table tr:hover td { background: rgba(0,0,0,0.02); }
   #ficha-header {
     display: flex;
     justify-content: space-between;
@@ -324,6 +370,10 @@
     <div id="sidebar-header">
       <p class="brand">CRM Ecommerce</p>
       <p class="sub">AWS GROUP — Seguimiento de clientes</p>
+      <div id="view-switch">
+        <button class="view-btn selected" data-view="clientes">Clientes</button>
+        <button class="view-btn" data-view="reportes">Reportes</button>
+      </div>
       <input id="search" type="text" placeholder="Buscar por nombre o número…">
       <button id="new-client-btn">+ Nuevo cliente</button>
     </div>
@@ -337,6 +387,7 @@
       <p>Elegí una ficha de la lista o creá un cliente nuevo para empezar.</p>
     </div>
     <div id="ficha" style="display:none;"></div>
+    <div id="reports-view" style="display:none;"></div>
   </main>
 </div>
 
@@ -368,6 +419,9 @@ let selectedId = null;
 let activeTab = 'general';
 let draft = null; // copia editable del cliente seleccionado
 let activeFilter = 'todos';
+let currentView = 'clientes';
+let reportFrom = '';
+let reportTo = '';
 
 const ESTADOS_PEDIDO = ['Combo cotizado', 'A la espera de respuesta', 'Hizo la compra'];
 
@@ -430,6 +484,7 @@ async function loadClients() {
     clients = await apiGet('list');
     renderFilterBar();
     renderList();
+    if (currentView === 'reportes') renderReports();
     if (selectedId) {
       const c = clients.find(c => c.ID === selectedId);
       if (c) { draft = { ...c }; renderFicha(); }
@@ -549,6 +604,7 @@ function renderFicha() {
       <button class="tab-btn ${activeTab==='preferencias'?'active':''}" data-tab="preferencias">Preferencias</button>
       <button class="tab-btn ${activeTab==='negociacion'?'active':''}" data-tab="negociacion">Negociación</button>
       <button class="tab-btn ${activeTab==='venta'?'active':''}" data-tab="venta">Venta</button>
+      <button class="tab-btn ${activeTab==='historial'?'active':''}" data-tab="historial">Historial${(draft.Historial && draft.Historial.length) ? ' (' + draft.Historial.length + ')' : ''}</button>
       <button class="tab-btn ${activeTab==='notas'?'active':''}" data-tab="notas">Notas</button>
     </div>
 
@@ -584,15 +640,31 @@ function renderFicha() {
         <div class="venta-detail">
           <div class="field-grid">
             ${field('FechaCompra', 'Fecha de compra', 'date')}
-            ${field('CuantoPago', 'Cuánto pagó', 'text')}
+            ${field('CuantoPago', 'Cuánto pagó (USD)', 'number')}
             ${field('QueCompro', 'Qué compró', 'textarea', null, true)}
             ${field('ComoCompramos', 'Cómo compramos los vinos (nuestra gestión)', 'textarea', null, true)}
             ${field('FechaIngresoDeposito', 'Fecha de ingreso al depósito', 'date')}
             ${field('Courier', 'Courier de exportación', 'select', ['FedEx','DHL','Otro'])}
             ${field('NumeroGuia', 'Número de guía', 'text')}
           </div>
+          <button class="btn btn-gold" id="archive-purchase-btn" style="margin-top:16px;">Guardar venta en el historial y empezar nuevo ciclo</button>
         </div>
       ` : ''}
+    </div>
+
+    <div class="tab-panel ${activeTab==='historial'?'active':''}" data-panel="historial">
+      ${(draft.Historial && draft.Historial.length) ? draft.Historial.map(h => `
+        <div style="border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;margin-bottom:12px;background:var(--paper-raised);">
+          <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+            <strong>${fmtDate(h.FechaCompra)}</strong>
+            <span style="color:var(--ink-soft);font-size:12.5px;">${escapeHtml(h.Courier || '—')} ${h.NumeroGuia ? '· guía ' + escapeHtml(h.NumeroGuia) : ''}</span>
+          </div>
+          <div style="font-size:13.5px;margin-bottom:4px;"><strong>Qué compró:</strong> ${escapeHtml(h.QueCompro || '—')}</div>
+          <div style="font-size:13.5px;margin-bottom:4px;"><strong>Cuánto pagó:</strong> ${fmtMoney(h.CuantoPago)}</div>
+          <div style="font-size:13.5px;margin-bottom:4px;"><strong>Cómo compramos:</strong> ${escapeHtml(h.ComoCompramos || '—')}</div>
+          <div style="font-size:13.5px;color:var(--ink-soft);">Ingresó a depósito: ${fmtDate(h.FechaIngresoDeposito)}</div>
+        </div>
+      `).join('') : `<p style="color:var(--ink-soft);">Todavía no hay compras cerradas archivadas para este cliente.</p>`}
     </div>
 
     <div class="tab-panel ${activeTab==='notas'?'active':''}" data-panel="notas">
@@ -618,6 +690,8 @@ function renderFicha() {
   document.getElementById('save-btn').addEventListener('click', saveDraft);
   document.getElementById('delete-btn').addEventListener('click', deleteDraft);
   document.getElementById('log-contact-btn').addEventListener('click', logContactNow);
+  const archiveBtn = document.getElementById('archive-purchase-btn');
+  if (archiveBtn) archiveBtn.addEventListener('click', archivePurchase);
 }
 
 function field(key, label, type, options, full) {
@@ -665,6 +739,22 @@ async function logContactNow() {
   await loadClients();
 }
 
+async function archivePurchase() {
+  if (!confirm('¿Guardar esta venta en el historial y empezar un nuevo ciclo con este cliente?')) return;
+  // Aseguramos que los datos cargados en pantalla estén guardados antes de archivar.
+  await apiPost({ action: 'update', data: draft });
+  const purchaseData = {
+    FechaCompra: draft.FechaCompra, QueCompro: draft.QueCompro, CuantoPago: draft.CuantoPago,
+    ComoCompramos: draft.ComoCompramos, FechaIngresoDeposito: draft.FechaIngresoDeposito,
+    Courier: draft.Courier, NumeroGuia: draft.NumeroGuia
+  };
+  const res = await apiPost({ action: 'addPurchase', clienteId: draft.ID, data: purchaseData });
+  if (res.error) { toast('Error: ' + res.error); return; }
+  toast('Venta archivada — nuevo ciclo iniciado');
+  activeTab = 'historial';
+  await loadClients();
+}
+
 // ---------- Modal nuevo cliente ----------
 const overlay = document.getElementById('modal-overlay');
 document.getElementById('new-client-btn').addEventListener('click', () => {
@@ -686,6 +776,120 @@ document.getElementById('modal-create').addEventListener('click', async () => {
 });
 
 document.getElementById('search').addEventListener('input', renderList);
+
+document.querySelectorAll('.view-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    currentView = btn.dataset.view;
+    document.querySelectorAll('.view-btn').forEach(b => b.classList.toggle('selected', b.dataset.view === currentView));
+    if (currentView === 'reportes') {
+      document.getElementById('empty-state').style.display = 'none';
+      document.getElementById('ficha').style.display = 'none';
+      document.getElementById('reports-view').style.display = 'block';
+      renderReports();
+    } else {
+      document.getElementById('reports-view').style.display = 'none';
+      if (selectedId) { document.getElementById('ficha').style.display = 'block'; }
+      else { document.getElementById('empty-state').style.display = 'flex'; }
+    }
+  });
+});
+
+// ---------- Reportes ----------
+function fmtMoney(n) {
+  const v = parseFloat(n) || 0;
+  return 'USD ' + v.toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+}
+
+function getAllPurchases() {
+  return clients.flatMap(c => (c.Historial || []).map(h => ({
+    ...h, NumeroCliente: c.NumeroCliente, NombreCliente: c.NombreCliente
+  })));
+}
+
+function renderReports() {
+  let purchases = getAllPurchases();
+
+  if (reportFrom) purchases = purchases.filter(p => p.FechaCompra && new Date(p.FechaCompra) >= new Date(reportFrom));
+  if (reportTo) purchases = purchases.filter(p => p.FechaCompra && new Date(p.FechaCompra) <= new Date(reportTo));
+
+  purchases.sort((a, b) => new Date(b.FechaCompra) - new Date(a.FechaCompra));
+
+  const total = purchases.reduce((sum, p) => sum + (parseFloat(p.CuantoPago) || 0), 0);
+  const count = purchases.length;
+  const avg = count ? total / count : 0;
+
+  // Agrupar por mes para el gráfico
+  const byMonth = {};
+  purchases.forEach(p => {
+    if (!p.FechaCompra) return;
+    const d = new Date(p.FechaCompra);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    byMonth[key] = (byMonth[key] || 0) + (parseFloat(p.CuantoPago) || 0);
+  });
+  const months = Object.keys(byMonth).sort().slice(-8); // últimos 8 meses con datos
+  const maxVal = Math.max(1, ...months.map(m => byMonth[m]));
+
+  const el = document.getElementById('reports-view');
+  el.innerHTML = `
+    <h2>Reportes de compras</h2>
+    <p class="sub-lead">Basado en las ventas archivadas en el historial de cada cliente.</p>
+
+    <div class="date-filter">
+      <label style="font-size:12.5px;color:var(--ink-soft);">Desde</label>
+      <input type="date" id="report-from" value="${reportFrom}">
+      <span>—</span>
+      <label style="font-size:12.5px;color:var(--ink-soft);">Hasta</label>
+      <input type="date" id="report-to" value="${reportTo}">
+      <button class="btn" id="report-clear">Limpiar filtro</button>
+    </div>
+
+    <div class="kpi-cards">
+      <div class="kpi-card"><div class="label">Total vendido</div><div class="value">${fmtMoney(total)}</div></div>
+      <div class="kpi-card"><div class="label">Ventas cerradas</div><div class="value">${count}</div></div>
+      <div class="kpi-card"><div class="label">Ticket promedio</div><div class="value">${fmtMoney(avg)}</div></div>
+    </div>
+
+    <div id="chart-wrap">
+      <h3>Ventas por mes</h3>
+      ${months.length ? `
+        <div class="bar-chart">
+          ${months.map(m => `
+            <div class="bar-col">
+              <div class="bar-value">${fmtMoney(byMonth[m]).replace('USD ', '')}</div>
+              <div class="bar" style="height:${Math.max(6, (byMonth[m] / maxVal) * 100)}%;"></div>
+              <div class="bar-label">${m}</div>
+            </div>
+          `).join('')}
+        </div>
+      ` : `<p style="color:var(--ink-soft);font-size:13px;">Todavía no hay ventas archivadas en este rango.</p>`}
+    </div>
+
+    <h3 style="font-size:15px;font-weight:600;margin-bottom:10px;">Detalle de ventas</h3>
+    ${purchases.length ? `
+      <table class="report-table">
+        <thead>
+          <tr><th>Fecha</th><th>Cliente</th><th>Qué compró</th><th>Cuánto pagó</th><th>Courier</th><th>Guía</th></tr>
+        </thead>
+        <tbody>
+          ${purchases.map(p => `
+            <tr>
+              <td>${fmtDate(p.FechaCompra)}</td>
+              <td>#${escapeHtml(p.NumeroCliente || '—')} ${escapeHtml(p.NombreCliente || '')}</td>
+              <td>${escapeHtml(p.QueCompro || '—')}</td>
+              <td>${fmtMoney(p.CuantoPago)}</td>
+              <td>${escapeHtml(p.Courier || '—')}</td>
+              <td>${escapeHtml(p.NumeroGuia || '—')}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    ` : `<p style="color:var(--ink-soft);font-size:13px;">No hay ventas para mostrar.</p>`}
+  `;
+
+  document.getElementById('report-from').addEventListener('change', (e) => { reportFrom = e.target.value; renderReports(); });
+  document.getElementById('report-to').addEventListener('change', (e) => { reportTo = e.target.value; renderReports(); });
+  document.getElementById('report-clear').addEventListener('click', () => { reportFrom = ''; reportTo = ''; renderReports(); });
+}
 
 // ---------- PWA ----------
 if ('serviceWorker' in navigator) {
