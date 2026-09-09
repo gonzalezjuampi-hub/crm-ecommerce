@@ -89,6 +89,29 @@
   }
   #new-client-btn:hover { background: rgba(184,147,90,0.12); }
 
+  #filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 12px 20px 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+  }
+  .filter-chip {
+    padding: 5px 11px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.22);
+    background: transparent;
+    color: rgba(239,227,218,0.75);
+    font-size: 11.5px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .filter-chip.selected {
+    background: var(--gold);
+    border-color: var(--gold);
+    color: #fff;
+  }
+
   #client-list {
     flex: 1;
     overflow-y: auto;
@@ -232,6 +255,35 @@
   }
   .freq-btn.selected { background: var(--wine); border-color: var(--wine); color: #fff; }
 
+  .estado-pedido-options { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 20px; }
+  .estado-btn {
+    padding: 8px 14px;
+    border-radius: var(--radius);
+    border: 1px solid var(--line);
+    background: var(--paper-raised);
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--ink-soft);
+  }
+  .estado-btn.selected.cotizado { background: #EFE3D2; border-color: var(--gold); color: #8A6A34; }
+  .estado-btn.selected.espera { background: #F5E9D2; border-color: var(--due-soon); color: var(--due-soon); }
+  .estado-btn.selected.compro { background: #E5EADF; border-color: var(--ok); color: var(--ok); }
+
+  .venta-detail { border-top: 1px dashed var(--line); padding-top: 18px; margin-top: 4px; }
+
+  .pedido-tag {
+    font-size: 10.5px;
+    padding: 2px 7px;
+    border-radius: 8px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .pedido-tag.cotizado { background: rgba(184,147,90,0.25); color: #E9CFA0; }
+  .pedido-tag.espera { background: rgba(201,150,46,0.25); color: #F0C878; }
+  .pedido-tag.compro { background: rgba(110,130,89,0.3); color: #B7D1A2; }
+
   /* ---------- Modal (nuevo cliente) ---------- */
   #modal-overlay {
     position: fixed; inset: 0; background: rgba(43,36,32,0.45);
@@ -275,6 +327,7 @@
       <input id="search" type="text" placeholder="Buscar por nombre o número…">
       <button id="new-client-btn">+ Nuevo cliente</button>
     </div>
+    <div id="filter-bar"></div>
     <div id="client-list"><div id="empty-list">Cargando clientes…</div></div>
   </aside>
 
@@ -314,6 +367,9 @@ let clients = [];
 let selectedId = null;
 let activeTab = 'general';
 let draft = null; // copia editable del cliente seleccionado
+let activeFilter = 'todos';
+
+const ESTADOS_PEDIDO = ['Combo cotizado', 'A la espera de respuesta', 'Hizo la compra'];
 
 // ---------- Utilidades ----------
 function toast(msg) {
@@ -351,6 +407,13 @@ function statusLabel(status) {
   return { overdue: 'Vencido', 'due-soon': 'Vence pronto', ok: 'Al día', none: 'Sin agenda' }[status];
 }
 
+function estadoPedidoClass(estado) {
+  if (estado === 'Combo cotizado') return 'cotizado';
+  if (estado === 'A la espera de respuesta') return 'espera';
+  if (estado === 'Hizo la compra') return 'compro';
+  return '';
+}
+
 // ---------- API ----------
 async function apiGet(action, params) {
   const qs = new URLSearchParams({ action, ...(params || {}) }).toString();
@@ -365,6 +428,7 @@ async function apiPost(body) {
 async function loadClients() {
   try {
     clients = await apiGet('list');
+    renderFilterBar();
     renderList();
     if (selectedId) {
       const c = clients.find(c => c.ID === selectedId);
@@ -377,6 +441,23 @@ async function loadClients() {
 }
 
 // ---------- Sidebar / lista ----------
+function renderFilterBar() {
+  const options = [{ key: 'todos', label: 'Todos' }].concat(
+    ESTADOS_PEDIDO.map(e => ({ key: e, label: e }))
+  );
+  const bar = document.getElementById('filter-bar');
+  bar.innerHTML = options.map(o =>
+    `<button class="filter-chip ${activeFilter === o.key ? 'selected' : ''}" data-filter="${escapeHtml(o.key)}">${escapeHtml(o.label)}</button>`
+  ).join('');
+  bar.querySelectorAll('.filter-chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      activeFilter = btn.dataset.filter;
+      renderFilterBar();
+      renderList();
+    });
+  });
+}
+
 function renderList() {
   const q = document.getElementById('search').value.trim().toLowerCase();
   const container = document.getElementById('client-list');
@@ -384,6 +465,10 @@ function renderList() {
   let filtered = clients.filter(c =>
     !q || (c.NombreCliente || '').toLowerCase().includes(q) || String(c.NumeroCliente || '').includes(q)
   );
+
+  if (activeFilter !== 'todos') {
+    filtered = filtered.filter(c => (c.EstadoPedido || 'Combo cotizado') === activeFilter);
+  }
 
   filtered.sort((a, b) => {
     const order = { overdue: 0, 'due-soon': 1, ok: 2, none: 3 };
@@ -397,6 +482,7 @@ function renderList() {
 
   container.innerHTML = filtered.map(c => {
     const status = alarmStatus(c);
+    const estadoPedido = c.EstadoPedido || 'Combo cotizado';
     return `
       <div class="client-row ${c.ID === selectedId ? 'active' : ''}" data-id="${c.ID}">
         <span class="alarm-dot ${status}"></span>
@@ -404,6 +490,7 @@ function renderList() {
           <div class="name">${escapeHtml(c.NombreCliente || 'Sin nombre')}</div>
           <div class="meta">#${escapeHtml(c.NumeroCliente || '—')} · próximo contacto ${fmtDate(c.FechaProximoContacto)}</div>
         </div>
+        <span class="pedido-tag ${estadoPedidoClass(estadoPedido)}">${estadoPedido === 'Combo cotizado' ? 'Cotizado' : estadoPedido === 'A la espera de respuesta' ? 'Espera' : 'Compró'}</span>
       </div>`;
   }).join('');
 
@@ -461,6 +548,7 @@ function renderFicha() {
       <button class="tab-btn ${activeTab==='general'?'active':''}" data-tab="general">Datos generales</button>
       <button class="tab-btn ${activeTab==='preferencias'?'active':''}" data-tab="preferencias">Preferencias</button>
       <button class="tab-btn ${activeTab==='negociacion'?'active':''}" data-tab="negociacion">Negociación</button>
+      <button class="tab-btn ${activeTab==='venta'?'active':''}" data-tab="venta">Venta</button>
       <button class="tab-btn ${activeTab==='notas'?'active':''}" data-tab="notas">Notas</button>
     </div>
 
@@ -484,9 +572,27 @@ function renderFicha() {
     <div class="tab-panel ${activeTab==='negociacion'?'active':''}" data-panel="negociacion">
       <div class="field-grid">
         ${field('FechaUltimoContacto', 'Fecha de último contacto', 'date')}
-        ${field('FechaCompra', 'Fecha de compra (si cerró)', 'date')}
         ${field('DuracionNegociacionDias', 'Duración de la negociación (días)', 'number')}
       </div>
+    </div>
+
+    <div class="tab-panel ${activeTab==='venta'?'active':''}" data-panel="venta">
+      <div class="estado-pedido-options">
+        ${ESTADOS_PEDIDO.map(e => `<button class="estado-btn ${draft.EstadoPedido === e || (!draft.EstadoPedido && e === 'Combo cotizado') ? 'selected ' + estadoPedidoClass(e) : ''}" data-estado-pedido="${escapeHtml(e)}">${e}</button>`).join('')}
+      </div>
+      ${(draft.EstadoPedido === 'Hizo la compra') ? `
+        <div class="venta-detail">
+          <div class="field-grid">
+            ${field('FechaCompra', 'Fecha de compra', 'date')}
+            ${field('CuantoPago', 'Cuánto pagó', 'text')}
+            ${field('QueCompro', 'Qué compró', 'textarea', null, true)}
+            ${field('ComoCompramos', 'Cómo compramos los vinos (nuestra gestión)', 'textarea', null, true)}
+            ${field('FechaIngresoDeposito', 'Fecha de ingreso al depósito', 'date')}
+            ${field('Courier', 'Courier de exportación', 'select', ['FedEx','DHL','Otro'])}
+            ${field('NumeroGuia', 'Número de guía', 'text')}
+          </div>
+        </div>
+      ` : ''}
     </div>
 
     <div class="tab-panel ${activeTab==='notas'?'active':''}" data-panel="notas">
@@ -505,6 +611,9 @@ function renderFicha() {
   });
   el.querySelectorAll('.freq-btn').forEach(btn => {
     btn.addEventListener('click', () => { draft.FrecuenciaContacto = btn.dataset.freq; renderFicha(); });
+  });
+  el.querySelectorAll('[data-estado-pedido]').forEach(btn => {
+    btn.addEventListener('click', () => { draft.EstadoPedido = btn.dataset.estadoPedido; renderFicha(); });
   });
   document.getElementById('save-btn').addEventListener('click', saveDraft);
   document.getElementById('delete-btn').addEventListener('click', deleteDraft);
